@@ -1,5 +1,6 @@
 ROLES=('admin','analyst','viewer')
 GROUPS=('A','B')
 EVENT_KINDS=('exposure','activation')
-STATES=('queued','running','done','failed')
+STATES=('queued','running','done','failed','blocked')
 ACTIONS=('publish_b','keep_a')
+CORRECTION_STATES=('pending','applying','effective','failed')

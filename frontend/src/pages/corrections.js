@@ -1,0 +1,15 @@
+import {state} from '../stores/session.js';import {esc} from '../utils/html.js';import {select,field} from '../components/common/fields.js';import {CORRECTION_STATES} from '../constants/enums.js';import {time} from '../utils/format.js';
+const num=v=>v??0;
+function counts(c){
+ let b=c.counts_before,a=c.counts_after;
+ if(!b||!a)return '';
+ return `<div class="comparison"><div><span>更正前有效人数</span><strong>${b.total_exposures} / ${b.total_activations}</strong><small>曝光 / 激活 · A ${b.n_a}/${b.x_a} · B ${b.n_b}/${b.x_b}</small></div><div class="delta"><span>更正后有效人数</span><strong>${a.total_exposures} / ${a.total_activations}</strong><small>曝光 / 激活 · A ${a.n_a}/${a.x_a} · B ${a.n_b}/${a.x_b}</small></div><div><span>剔除人数</span><strong>${b.total_exposures-a.total_exposures} / ${b.total_activations-a.total_activations}</strong><small>曝光 / 激活（撤销曝光时激活连带剔除）</small></div></div>`;
+}
+function card(c){
+ let exp=state.experiments.find(e=>e.id===c.experiment_id);
+ return `<article class="experiment"><div class="eyebrow">更正单 #${c.id} · ${esc(exp?.code||c.experiment_code||'')} · 参与者 ${esc(c.user_key)} <span class="tag">${esc(CORRECTION_STATES[c.state]||c.state)}</span></div><h3>${esc(c.reason)}</h3><p class="meta">撤销类型：${c.revoke_kinds.map(k=>k==='exposure'?'曝光':'激活').join('、')} · 提交 ${time(c.created_at)} · 生效 ${c.state==='effective'?time(c.applied_at):'—'} · 尝试 ${num(c.attempts)} 次 · ${esc(c.created_by||'')}</p>${c.state==='failed'?`<p class="notice warning">失败原因：${esc(c.error||'未知')}；重试不会重复扣减已撤销事件。<br><button data-retry-correction="${c.id}">重试该更正单</button></p>`:''}${c.state==='effective'?counts(c):''}${c.affected_decisions?.length?`<p class="notice ${c.state==='effective'?'warning':''}">受影响裁决：${c.affected_decisions.map(id=>`#${id}`).join('、')}（未发布的已置为证据失效，已发布的保留当时证据并标注）</p>`:''}${c.revoked_events?.length?`<p class="meta">已撤销留痕 ${c.revoked_events.length} 条：${c.revoked_events.map(e=>`#${e.event_id} ${e.group}组${e.kind==='exposure'?'曝光':'激活'}`).join('；')}（原始事件保留不删除）</p>`:''}</article>`;
+}
+export function render(){
+ let canWrite=state.user.role!=='viewer';
+ return `<div class="split"><section><h2>误采事件更正 / ${state.corrections.length} 单</h2><p class="notice">按实验参与者撤销误采的曝光与激活：原始事件保留并记录原因，重新聚合有效曝光与激活；撤销曝光时连同其激活剔除。更正单从待处理到生效全程可查，失败可重试且不重复扣减。</p>${state.corrections.map(card).join('')||'<p class="notice">暂无更正单。右侧可对误采参与者发起撤销。</p>'}</section><aside><h2>发起更正单</h2><form id="correction">${select('实验','experiment_id',state.experiments.map(e=>[e.id,e.name]))}${field('参与者用户键','user_key','text','required')}<div class="label-note">撤销事件类型（不勾选默认两类全撤）</div><label class="check"><input type="checkbox" name="kinds" value="exposure" checked> 曝光（连同其激活一并剔除）</label><label class="check"><input type="checkbox" name="kinds" value="activation"> 仅激活</label><label>误采原因<textarea name="reason" required minlength="5" rows="5" placeholder="如：试用埋点把部分激活误记为真实转化"></textarea></label>${canWrite?'<button class="primary">提交更正单</button>':'<button disabled>观察员只读</button>'}</form><button id="refresh">刷新处理状态</button></aside></div>`;
+}

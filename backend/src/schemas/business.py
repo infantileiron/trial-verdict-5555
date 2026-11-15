@@ -24,3 +24,7 @@ class RationaleInput(BaseModel):
  rationale:str=Field(min_length=10,max_length=3000)
 class PublishInput(BaseModel):
  action:Literal['publish_b','keep_a']
+class CorrectionInput(BaseModel):
+ experiment_id:int=Field(gt=0);user_key:str=Field(min_length=1,max_length=80)
+ reason:str=Field(min_length=5,max_length=1000)
+ revoke_kinds:list[Literal['exposure','activation']]=Field(default_factory=list)
